@@ -19,10 +19,11 @@ X = df[independent_cols]
 y = df[dependent_col]
 
 
+cv = KFold(n_splits=10, shuffle=True, random_state=1)
 
 gbr = GradientBoostingRegressor(random_state=1)
 
-cv_results = cross_validate(gbr, X, y, cv=10, scoring={"r2": "r2","mse": "neg_mean_squared_error"}, return_train_score=True)
+cv_results = cross_validate(gbr, X, y, cv=cv, scoring={"r2": "r2","mse": "neg_mean_squared_error"}, return_train_score=True)
 
 default_training_mse = -cv_results["train_mse"]
 default_test_mse = -cv_results["test_mse"]
@@ -31,16 +32,15 @@ default_test_r2 = cv_results["test_r2"]
 
 print("Gradient Boosting Regressor ")
 print("---------DEFAULT MODEL RESULTS---------")
-print("Train MSE scores:", default_training_mse)
-print("Mean Train MSE:", default_training_mse.mean())
-print("Train R2 scores:", default_training_r2)
 print("Mean Train R2:", default_training_r2.mean())
+print("Train R2 Standard Deviation:", default_training_r2.std())
+print("Mean Training MSE:", default_training_mse.mean())
+print("Train MSE Standard Deviation:", default_training_mse.std())
 print()
-print("Test MSE scores:", default_test_mse)
-print("Mean Test MSE:", default_test_mse.mean())
-print("Test R2 scores:", default_test_r2)
 print("Mean Test R2:", default_test_r2.mean())
-
+print("Test R2 Standard Deviation:", default_test_r2.std())
+print("Mean Test MSE:", default_test_mse.mean())
+print("Test MSE Standard Deviation:", default_test_mse.std())
 
 
 learning_rate_values = [0.01, 0.05, 0.1, 0.15, 0.2]
@@ -60,7 +60,7 @@ test_best_LR_MSE=""
 print("\n ------------TESTING LEARNING_RATE------------- \n")
 for lr in learning_rate_values:
     gbr = GradientBoostingRegressor(learning_rate=lr, random_state=1)
-    cv_results = cross_validate(gbr, X, y, cv=10, scoring={"r2": "r2","mse": "neg_mean_squared_error"}, return_train_score=True)
+    cv_results = cross_validate(gbr, X, y, cv=cv, scoring={"r2": "r2","mse": "neg_mean_squared_error"}, return_train_score=True)
 
     training_mse = -cv_results["train_mse"]
     test_mse = -cv_results["test_mse"]
@@ -139,7 +139,7 @@ test_best_MD_MSE=""
 print("\n ------------TESTING MAX_DEPTH------------- \n")
 for md in max_depth_values:
     gbr = GradientBoostingRegressor(max_depth=md, random_state=1)
-    cv_results = cross_validate(gbr, X, y, cv=10, scoring={"r2": "r2","mse": "neg_mean_squared_error"}, return_train_score=True)
+    cv_results = cross_validate(gbr, X, y, cv=cv, scoring={"r2": "r2","mse": "neg_mean_squared_error"}, return_train_score=True)
 
     training_mse = -cv_results["train_mse"]
     test_mse = -cv_results["test_mse"]
@@ -228,7 +228,11 @@ train_r2 = res["mean_train_r2"]
 test_mse = -res["mean_test_mse"]
 train_mse = -res["mean_train_mse"]
 
-best_test_r2=max(test_r2)
+std_test_r2 = res["std_test_r2"]
+std_train_r2 = res["std_train_r2"]
+std_test_mse = res["std_test_mse"]
+std_train_mse = res["std_train_mse"]
+
 best_test_r2_idx = np.argmax(test_r2)
 worst_test_r2_idx = np.argmin(test_r2)
 best_test_mse_idx = np.argmin(test_mse)
@@ -243,15 +247,15 @@ print("\n ------------TESTING BOTH LEARNING RATE + MAX_DEPTH------------- \n")
 
 
 print(" TRAINING RESULTS ")
-print("Best Train R2:", train_r2[best_train_r2_idx], "| Params:", res["params"][best_train_r2_idx])
-print("Worst Train R2:", train_r2[worst_train_r2_idx], "| Params:", res["params"][worst_train_r2_idx])
-print("Best Train MSE (lowest):", train_mse[best_train_mse_idx], "| Params:", res["params"][best_train_mse_idx])
-print("Worst Train MSE (highest):", train_mse[worst_train_mse_idx], "| Params:", res["params"][worst_train_mse_idx])
+print("Best Train R2:", train_r2[best_train_r2_idx], "(±", std_train_r2[best_train_r2_idx], ")| Params:", res["params"][best_train_r2_idx])
+print("Worst Train R2:", train_r2[worst_train_r2_idx], "(±", std_train_r2[worst_train_r2_idx], ")| Params:", res["params"][worst_train_r2_idx])
+print("Best Train MSE (lowest):", train_mse[best_train_mse_idx], "(±", -std_train_mse[best_train_mse_idx], ")| Params:", res["params"][best_train_mse_idx])
+print("Worst Train MSE (highest):", train_mse[worst_train_mse_idx], "(±", -std_train_mse[worst_train_mse_idx], ")| Params:", res["params"][worst_train_mse_idx])
 print(" TEST RESULTS ")
-print("Best Test R2:", test_r2[best_test_r2_idx], "| Params:", res["params"][best_test_r2_idx])
-print("Worst Test R2:", test_r2[worst_test_r2_idx], "| Params:", res["params"][worst_test_r2_idx])
-print("Best Test MSE (lowest):", test_mse[best_test_mse_idx], "| Params:", res["params"][best_test_mse_idx])
-print("Worst Test MSE (highest):", test_mse[worst_test_mse_idx], "| Params:", res["params"][worst_test_mse_idx])
+print("Best Test R2:", test_r2[best_test_r2_idx], "(±", std_test_r2[best_test_r2_idx], ")| Params:", res["params"][best_test_r2_idx])
+print("Worst Test R2:", test_r2[worst_test_r2_idx], "(±", std_test_r2[worst_test_r2_idx], ")| Params:", res["params"][worst_test_r2_idx])
+print("Best Test MSE (lowest):", test_mse[best_test_mse_idx], "(±", -std_test_mse[best_test_mse_idx], ")| Params:", res["params"][best_test_mse_idx])
+print("Worst Test MSE (highest):", test_mse[worst_test_mse_idx], "(±", -std_test_mse[worst_test_mse_idx], ")| Params:", res["params"][worst_test_mse_idx])
 print()
 
 
@@ -278,33 +282,26 @@ pivot_test_mse = df_test_mse.pivot(index="max_depth", columns="learning_rate", v
 
 # Plot examples
 plt.figure(figsize=(8,5))
-sns.heatmap(pivot_train_r2, annot=True, cmap="mako", fmt=".3f")
-plt.title("Gradient Boosting R2 (Train)")
+sns.heatmap(pivot_train_r2, annot=True, cmap="flare", fmt=".3f")
+plt.title("Gradient Boosting R2 (Training)")
 plt.ylabel("max_depth"); plt.xlabel("learning_rate")
 plt.tight_layout(); plt.show()
 
 plt.figure(figsize=(8,5))
-sns.heatmap(pivot_test_r2, annot=True, cmap="mako", fmt=".3f")
+sns.heatmap(pivot_test_r2, annot=True, cmap="flare", fmt=".3f")
 plt.title("Gradient Boosting R2 (Test)")
 plt.ylabel("max_depth"); plt.xlabel("learning_rate")
 plt.tight_layout(); plt.show()
 
 plt.figure(figsize=(8,5))
-sns.heatmap(pivot_train_mse, annot=True, cmap="mako", fmt=".1f")
-plt.title("Gradient Boosting MSE (Train)")
+sns.heatmap(pivot_train_mse, annot=True, cmap="flare", fmt=".1f")
+plt.title("Gradient Boosting MSE (Training)")
 plt.ylabel("max_depth"); plt.xlabel("learning_rate")
 plt.tight_layout(); plt.show()
 
 plt.figure(figsize=(8,5))
-sns.heatmap(pivot_test_mse, annot=True, cmap="mako", fmt=".1f")
+sns.heatmap(pivot_test_mse, annot=True, cmap="flare", fmt=".1f")
 plt.title("Gradient Boosting MSE (Test)")
 plt.ylabel("max_depth"); plt.xlabel("learning_rate")
 plt.tight_layout(); plt.show()
-
-
-
-
-
-
-
 
