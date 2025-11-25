@@ -3,10 +3,10 @@ import numpy as np
 from sklearn.neighbors import KNeighborsRegressor
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_validate
 from sklearn.model_selection import GridSearchCV, KFold
-
+from sklearn.pipeline import Pipeline
 steel = "steel.csv"
 
 independent_cols = ['normalising_temperature', 'tempering_temperature', 'percent_silicon', 'percent_chromium',
@@ -39,6 +39,13 @@ print("Test MSE scores:", default_test_mse)
 print("Mean Test MSE:", default_test_mse.mean())
 print("Test R2 scores:", default_test_r2)
 print("Mean Test R2:", default_test_r2.mean())
+
+
+pipe = Pipeline([
+    ("scaler", StandardScaler()),
+    ("knn", KNeighborsRegressor())
+])
+
 
 n_neighbour_values = [3, 6, 9, 12, 15]
 weight_values=['uniform', 'distance']
@@ -188,14 +195,14 @@ print("Best Mean MSE on test:", test_best_MSE_using_weight)
 print("Best Weight for MSE on test:", test_best_weight_MSE)
 
 param_grid = {
-    "n_neighbors": [3, 6, 9, 12, 15],
-    "weights": ['uniform', 'distance']
+    "knn__n_neighbors": [3, 6, 9, 12, 15],
+    "knn__weights": ['uniform', 'distance']
 }
 cv = KFold(n_splits=10, shuffle=True, random_state=1)
 neigh= KNeighborsRegressor()
 
 grid = GridSearchCV(
-    estimator=neigh,
+    estimator=pipe,
     param_grid=param_grid,
     scoring={"r2": "r2", "mse": "neg_mean_squared_error"},
     cv=cv,
@@ -236,63 +243,68 @@ print("Best Test MSE (lowest):", test_mse[best_test_mse_idx], "| Params:", res["
 print("Worst Test MSE (highest):", test_mse[worst_test_mse_idx], "| Params:", res["params"][worst_test_mse_idx])
 print()
 
-# params_df = pd.DataFrame(res["params"])
-#
-# # Attach metrics (convert neg MSE to positive)
-# params_df["r2_train"] = res["mean_train_r2"]
-# params_df["r2_test"] = res["mean_test_r2"]
-# params_df["mse_train"] = -res["mean_train_mse"]
-# params_df["mse_test"] = -res["mean_test_mse"]
-#
-# # Separate DataFrames for each plot
-# df_train_r2 = params_df[["max_depth", "learning_rate", "r2_train"]].copy()
-# df_test_r2 = params_df[["max_depth", "learning_rate", "r2_test"]].copy()
-# df_train_mse = params_df[["max_depth", "learning_rate", "mse_train"]].copy()
-# df_test_mse = params_df[["max_depth", "learning_rate", "mse_test"]].copy()
-#
-# # Pivot for heatmaps
-# pivot_train_r2 = df_train_r2.pivot(index="max_depth", columns="learning_rate", values="r2_train")
-# pivot_test_r2 = df_test_r2.pivot(index="max_depth", columns="learning_rate", values="r2_test")
-# pivot_train_mse = df_train_mse.pivot(index="max_depth", columns="learning_rate", values="mse_train")
-# pivot_test_mse = df_test_mse.pivot(index="max_depth", columns="learning_rate", values="mse_test")
-#
-# # Plot examples
-# plt.figure(figsize=(8, 5))
-# sns.heatmap(pivot_train_r2, annot=True, cmap="mako", fmt=".3f")
-# plt.title("Gradient Boosting R2 (Train)")
-# plt.ylabel("max_depth");
-# plt.xlabel("learning_rate")
-# plt.tight_layout();
-# plt.show()
-#
-# plt.figure(figsize=(8, 5))
-# sns.heatmap(pivot_test_r2, annot=True, cmap="mako", fmt=".3f")
-# plt.title("Gradient Boosting R2 (Test)")
-# plt.ylabel("max_depth");
-# plt.xlabel("learning_rate")
-# plt.tight_layout();
-# plt.show()
-#
-# plt.figure(figsize=(8, 5))
-# sns.heatmap(pivot_train_mse, annot=True, cmap="mako", fmt=".1f")
-# plt.title("Gradient Boosting MSE (Train)")
-# plt.ylabel("max_depth");
-# plt.xlabel("learning_rate")
-# plt.tight_layout();
-# plt.show()
-#
-# plt.figure(figsize=(8, 5))
-# sns.heatmap(pivot_test_mse, annot=True, cmap="mako", fmt=".1f")
-# plt.title("Gradient Boosting MSE (Test)")
-# plt.ylabel("max_depth");
-# plt.xlabel("learning_rate")
-# plt.tight_layout();
-# plt.show()
+params_df = pd.DataFrame(res["params"])
 
-#
-#
-#
-#
-#
-#
+params_df.rename(columns={
+    "knn__n_neighbors": "n_neighbors",
+    "knn__weights": "weights"
+}, inplace=True)
+
+# Attach metrics (convert neg MSE to positive)
+params_df["r2_train"] = res["mean_train_r2"]
+params_df["r2_test"] = res["mean_test_r2"]
+params_df["mse_train"] = -res["mean_train_mse"]
+params_df["mse_test"] = -res["mean_test_mse"]
+
+# Separate DataFrames for each plot
+df_train_r2 = params_df[["n_neighbors", "weights", "r2_train"]].copy()
+df_test_r2 = params_df[["n_neighbors", "weights", "r2_test"]].copy()
+df_train_mse = params_df[["n_neighbors", "weights", "mse_train"]].copy()
+df_test_mse = params_df[["n_neighbors", "weights", "mse_test"]].copy()
+
+# Pivot for heatmaps
+pivot_train_r2 = df_train_r2.pivot(index="n_neighbors", columns="weights", values="r2_train")
+pivot_test_r2 = df_test_r2.pivot(index="n_neighbors", columns="weights", values="r2_test")
+pivot_train_mse = df_train_mse.pivot(index="n_neighbors", columns="weights", values="mse_train")
+pivot_test_mse = df_test_mse.pivot(index="n_neighbors", columns="weights", values="mse_test")
+
+# Plot examples
+plt.figure(figsize=(6, 4))
+sns.heatmap(pivot_train_r2, annot=True, cmap="mako", fmt=".3f")
+plt.title("KNN R2 (Train)")
+plt.ylabel("n_neighbous");
+plt.xlabel("weights")
+plt.tight_layout();
+plt.show()
+
+plt.figure(figsize=(6, 4))
+sns.heatmap(pivot_test_r2, annot=True, cmap="mako", fmt=".3f")
+plt.title("KNN R2 (Test)")
+plt.ylabel("n_neighbors");
+plt.xlabel("weights")
+plt.tight_layout();
+plt.show()
+
+plt.figure(figsize=(6, 4))
+sns.heatmap(pivot_train_mse, annot=True, cmap="mako", fmt=".1f")
+plt.title("KNN MSE (Train)")
+plt.ylabel("n_neighbors");
+plt.xlabel("weights")
+plt.tight_layout();
+plt.show()
+
+plt.figure(figsize=(6, 4))
+sns.heatmap(pivot_test_mse, annot=True, cmap="mako", fmt=".1f")
+plt.title("KNN MSE (Test)")
+plt.ylabel("n_neighbors");
+plt.xlabel("weights")
+plt.tight_layout();
+plt.show()
+
+
+
+
+
+
+
 
