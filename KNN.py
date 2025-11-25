@@ -9,19 +9,16 @@ from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.pipeline import Pipeline
 steel = "steel.csv"
 
-independent_cols = ['normalising_temperature', 'tempering_temperature', 'percent_silicon', 'percent_chromium',
-                    'percent_copper', 'percent_nickel', 'percent_sulphur', 'percent_carbon', 'percent_manganese']
+independent_cols = ['normalising_temperature', 'tempering_temperature', 'percent_silicon', 'percent_chromium','percent_copper', 'percent_nickel', 'percent_sulphur', 'percent_carbon', 'percent_manganese']
 dependent_col = 'tensile_strength'
 
 df = pd.read_csv(steel)
-
 X = df[independent_cols]
 y = df[dependent_col]
 
 neigh = KNeighborsRegressor()
 cv = KFold(n_splits=10, shuffle=True, random_state=1)
-cv_results = cross_validate(neigh, X, y, cv=cv, scoring={"r2": "r2", "mse": "neg_mean_squared_error"},
-                            return_train_score=True)
+cv_results = cross_validate(neigh, X, y, cv=cv, scoring={"r2": "r2", "mse": "neg_mean_squared_error"},return_train_score=True)
 
 default_training_mse = -cv_results["train_mse"]
 default_test_mse = -cv_results["test_mse"]
@@ -47,7 +44,7 @@ pipe = Pipeline([
 ])
 
 
-n_neighbour_values = [3, 6, 9, 12, 15]
+n_neighbor_values = [3, 5, 7, 9, 11, 13, 15]
 weight_values=['uniform', 'distance']
 
 training_best_R2_using_neighbours = 0
@@ -61,8 +58,8 @@ test_best_neighbours_R2 = ""
 test_best_neighbours_MSE = ""
 
 print("\n ------------TESTING LEARNING_RATE------------- \n")
-for n_neighbour in n_neighbour_values:
-    neigh = KNeighborsRegressor(n_neighbors=n_neighbour)
+for n_neighbor in n_neighbor_values:
+    neigh = KNeighborsRegressor(n_neighbors=n_neighbor)
     cv_results = cross_validate(neigh, X, y, cv=cv, scoring={"r2": "r2", "mse": "neg_mean_squared_error"},
                                 return_train_score=True)
 
@@ -83,19 +80,19 @@ for n_neighbour in n_neighbour_values:
 
     if training_mean_r2 > training_best_R2_using_neighbours:
         training_best_R2_using_neighbours = training_mean_r2
-        training_best_neighbours_R2 = n_neighbour
+        training_best_neighbours_R2 = n_neighbor
     if training_mean_mse < training_best_MSE_using_neighbours:
         training_best_MSE_using_neighbours = training_mean_mse
-        training_best_neighbours_MSE = n_neighbour
+        training_best_neighbours_MSE = n_neighbor
 
     if test_mean_r2 > test_best_R2_using_neighbours:
         test_best_R2_using_neighbours = test_mean_r2
-        test_best_neighbours_R2 = n_neighbour
+        test_best_neighbours_R2 = n_neighbor
     if test_mean_mse < test_best_MSE_using_neighbours:
         test_best_MSE_using_neighbours = test_mean_mse
-        test_best_neighbours_MSE = n_neighbour
+        test_best_neighbours_MSE = n_neighbor
 
-    print('Learning Rate: ', n_neighbour)
+    print('Learning Rate: ', n_neighbor)
 
     print('Mean MSE:', training_mean_mse)
     print('Std MSE:', training_std_mse)
@@ -111,7 +108,7 @@ for n_neighbour in n_neighbour_values:
     print('Std R2:', test_std_r2)
     print()
 
-print("N_Neighbours RESULTS")
+print("N_Neighbors RESULTS")
 print("Best Mean R2 on training:", training_best_R2_using_neighbours)
 print("Best n_neighbors for R2 on training:", training_best_neighbours_R2)
 print("Best Mean MSE on training:", training_best_MSE_using_neighbours)
@@ -195,7 +192,7 @@ print("Best Mean MSE on test:", test_best_MSE_using_weight)
 print("Best Weight for MSE on test:", test_best_weight_MSE)
 
 param_grid = {
-    "knn__n_neighbors": [3, 6, 9, 12, 15],
+    "knn__n_neighbors": [3, 5, 7, 9, 11, 13, 15],
     "knn__weights": ['uniform', 'distance']
 }
 cv = KFold(n_splits=10, shuffle=True, random_state=1)
@@ -234,7 +231,7 @@ worst_train_r2_idx = np.argmin(train_r2)
 best_train_mse_idx = np.argmin(train_mse)
 worst_train_mse_idx = np.argmax(train_mse)
 
-print("\n ------------TESTING BOTH N_NEIGHBOURS + WEIGHTS------------- \n")
+print("\n ------------TESTING BOTH N_NEIGHBORS + WEIGHTS------------- \n")
 
 print(" TRAINING RESULTS ")
 print("Best Train R2:", train_r2[best_train_r2_idx],"(±", std_train_r2[best_train_r2_idx], ") | Params:", res["params"][best_train_r2_idx])
@@ -277,34 +274,34 @@ pivot_test_mse = df_test_mse.pivot(index="n_neighbors", columns="weights", value
 # Plot examples
 plt.figure(figsize=(6, 4))
 sns.heatmap(pivot_train_r2, annot=True, cmap="crest", fmt=".3f")
-plt.title("KNN R2 (Train)")
-plt.ylabel("n_neighbous");
+plt.title("KNN R2 (Training)")
+plt.ylabel("n_neighbous")
 plt.xlabel("weights")
-plt.tight_layout();
+plt.tight_layout()
 plt.show()
 
 plt.figure(figsize=(6, 4))
 sns.heatmap(pivot_test_r2, annot=True, cmap="crest", fmt=".3f")
 plt.title("KNN R2 (Test)")
-plt.ylabel("n_neighbors");
+plt.ylabel("n_neighbors")
 plt.xlabel("weights")
-plt.tight_layout();
+plt.tight_layout()
 plt.show()
 
 plt.figure(figsize=(6, 4))
 sns.heatmap(pivot_train_mse, annot=True, cmap="crest", fmt=".1f")
-plt.title("KNN MSE (Train)")
-plt.ylabel("n_neighbors");
+plt.title("KNN MSE (Training)")
+plt.ylabel("n_neighbors")
 plt.xlabel("weights")
-plt.tight_layout();
+plt.tight_layout()
 plt.show()
 
 plt.figure(figsize=(6, 4))
 sns.heatmap(pivot_test_mse, annot=True, cmap="crest", fmt=".1f")
 plt.title("KNN MSE (Test)")
-plt.ylabel("n_neighbors");
+plt.ylabel("n_neighbors")
 plt.xlabel("weights")
-plt.tight_layout();
+plt.tight_layout()
 plt.show()
 
 
