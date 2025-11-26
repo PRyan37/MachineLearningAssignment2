@@ -3,12 +3,13 @@ import numpy as np
 from sklearn.neighbors import KNeighborsRegressor
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_validate
 from sklearn.model_selection import GridSearchCV, KFold
+from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-steel = "steel.csv"
 
+
+steel = "steel.csv"
 independent_cols = ['normalising_temperature', 'tempering_temperature', 'percent_silicon', 'percent_chromium','percent_copper', 'percent_nickel', 'percent_sulphur', 'percent_carbon', 'percent_manganese']
 dependent_col = 'tensile_strength'
 
@@ -17,7 +18,9 @@ X = df[independent_cols]
 y = df[dependent_col]
 
 neigh = KNeighborsRegressor()
+# random state set to 1 for reproducibility
 cv = KFold(n_splits=10, shuffle=True, random_state=1)
+# I began using cross_val_scores but switched to cross_validate to capture the traininng scores as well
 cv_results = cross_validate(neigh, X, y, cv=cv, scoring={"r2": "r2", "mse": "neg_mean_squared_error"},return_train_score=True)
 
 default_training_mse = -cv_results["train_mse"]
@@ -38,15 +41,11 @@ print("Mean Test MSE:", default_test_mse.mean())
 print("Test MSE Standard Deviation:", default_test_mse.std())
 
 
-pipe = Pipeline([
-    ("scaler", StandardScaler()),
-    ("knn", KNeighborsRegressor())
-])
-
-
 n_neighbor_values = [3, 5, 7, 9, 11, 13, 15]
 weight_values=['uniform', 'distance']
 
+# Testing N_NEIGHBORS
+# Looking back all these for loops could have been done alot simpler using GridSearch
 training_best_R2_using_neighbours = 0
 training_best_MSE_using_neighbours = 1000000
 training_best_neighbours_R2 = 0
@@ -96,14 +95,12 @@ for n_neighbor in n_neighbor_values:
 
     print('Mean MSE:', training_mean_mse)
     print('Std MSE:', training_std_mse)
-
     print('Mean R2:', training_mean_r2)
     print('Std R2:', training_std_r2)
     print()
 
     print('Mean MSE:', test_mean_mse)
     print('Std MSE:', test_std_mse)
-
     print('Mean R2:', test_mean_r2)
     print('Std R2:', test_std_r2)
     print()
@@ -191,12 +188,18 @@ print("Best Weight for R2 on test:", test_best_weight_R2)
 print("Best Mean MSE on test:", test_best_MSE_using_weight)
 print("Best Weight for MSE on test:", test_best_weight_MSE)
 
+# Now testing both n_neighbors and weights together using GridSearchCV with preprocessing
+# the knn__ is needed in front of the param names to indicate they are part of the KNN step in the pipeline
 param_grid = {
     "knn__n_neighbors": [3, 5, 7, 9, 11, 13, 15],
     "knn__weights": ['uniform', 'distance']
 }
 cv = KFold(n_splits=10, shuffle=True, random_state=1)
-neigh= KNeighborsRegressor()
+
+pipe = Pipeline([
+    ("scaler", StandardScaler()),
+    ("knn", KNeighborsRegressor())
+])
 
 grid = GridSearchCV(
     estimator=pipe,
@@ -205,84 +208,84 @@ grid = GridSearchCV(
     cv=cv,
     n_jobs=-1,
     return_train_score=True,
-    refit=False
+    refit=False,
 )
 
 grid.fit(X, y)
 res = grid.cv_results_
 
-test_r2 = res["mean_test_r2"]
+# didnt end up using stds
 train_r2 = res["mean_train_r2"]
-test_mse = -res["mean_test_mse"]
-train_mse = -res["mean_train_mse"]
-
-std_test_r2 = res["std_test_r2"]
 std_train_r2 = res["std_train_r2"]
-std_test_mse = res["std_test_mse"]
-std_train_mse = res["std_train_mse"]
+test_r2 = res["mean_test_r2"]
+std_test_r2 = res["std_test_r2"]
 
-best_test_r2_idx = np.argmax(test_r2)
-worst_test_r2_idx = np.argmin(test_r2)
-best_test_mse_idx = np.argmin(test_mse)
-worst_test_mse_idx = np.argmax(test_mse)
+train_mse = -res["mean_train_mse"]
+std_train_mse = -res["std_train_mse"]
+test_mse = -res["mean_test_mse"]
+std_test_mse = -res["std_test_mse"]
 
 best_train_r2_idx = np.argmax(train_r2)
 worst_train_r2_idx = np.argmin(train_r2)
 best_train_mse_idx = np.argmin(train_mse)
 worst_train_mse_idx = np.argmax(train_mse)
 
-print("\n ------------TESTING BOTH N_NEIGHBORS + WEIGHTS------------- \n")
+best_test_r2_idx = np.argmax(test_r2)
+worst_test_r2_idx = np.argmin(test_r2)
+best_test_mse_idx = np.argmin(test_mse)
+worst_test_mse_idx = np.argmax(test_mse)
+
+print("\n ------------TESTING BOTH N_NEIGHBORS + WEIGHTS (WITH PREPROCESSING)------------- \n")
 
 print(" TRAINING RESULTS ")
-print("Best Train R2:", train_r2[best_train_r2_idx],"(±", std_train_r2[best_train_r2_idx], ") | Params:", res["params"][best_train_r2_idx])
-print("Worst Train R2:", train_r2[worst_train_r2_idx],"(±", std_train_r2[worst_train_r2_idx], ") | Params:", res["params"][worst_train_r2_idx])
-print("Best Train MSE (lowest):", train_mse[best_train_mse_idx],"(±", -std_train_mse[best_train_mse_idx], ") | Params:", res["params"][best_train_mse_idx])
-print("Worst Train MSE (highest):", train_mse[worst_train_mse_idx],"(±", -std_train_mse[worst_train_mse_idx], ") | Params:", res["params"][worst_train_mse_idx])
-print(" TEST RESULTS ")
-print("Best Test R2:", test_r2[best_test_r2_idx],"(±", std_test_r2[best_test_r2_idx], ") | Params:", res["params"][best_test_r2_idx])
-print("Worst Test R2:", test_r2[worst_test_r2_idx],"(±", std_test_r2[worst_test_r2_idx], ") | Params:", res["params"][worst_test_r2_idx])
-print("Best Test MSE (lowest):", test_mse[best_test_mse_idx],"(±", -std_test_mse[best_test_mse_idx], ") | Params:", res["params"][best_test_mse_idx])
-print("Worst Test MSE (highest):", test_mse[worst_test_mse_idx],"(±", -std_test_mse[worst_test_mse_idx], ") | Params:", res["params"][worst_test_mse_idx])
-print()
+print("Best Train R2:", train_r2[best_train_r2_idx], " | Params:", res["params"][best_train_r2_idx])
+print("Worst Train R2:", train_r2[worst_train_r2_idx], " | Params:", res["params"][worst_train_r2_idx])
+print("Best Train MSE (lowest):", train_mse[best_train_mse_idx], " | Params:", res["params"][best_train_mse_idx])
+print("Worst Train MSE (highest):", train_mse[worst_train_mse_idx], " | Params:", res["params"][worst_train_mse_idx])
 
+print(" TEST RESULTS ")
+print("Best Test R2:", test_r2[best_test_r2_idx], " | Params:", res["params"][best_test_r2_idx])
+print("Worst Test R2:", test_r2[worst_test_r2_idx], " | Params:", res["params"][worst_test_r2_idx])
+print("Best Test MSE (lowest):", test_mse[best_test_mse_idx], " | Params:", res["params"][best_test_mse_idx])
+print("Worst Test MSE (highest):", test_mse[worst_test_mse_idx], " | Params:", res["params"][worst_test_mse_idx])
+print()
 
 params_df = pd.DataFrame(res["params"])
 
+# Rename knn__ params to simpler names for plotting
 params_df.rename(columns={
     "knn__n_neighbors": "n_neighbors",
     "knn__weights": "weights"
 }, inplace=True)
 
-# Attach metrics (convert neg MSE to positive)
-params_df["r2_train"] = res["mean_train_r2"]
-params_df["r2_test"] = res["mean_test_r2"]
-params_df["mse_train"] = -res["mean_train_mse"]
-params_df["mse_test"] = -res["mean_test_mse"]
+# plot a heatmap for both training and test R2 and MSE
+params_df["r2_train"] = train_r2
+params_df["r2_test"] = test_r2
+params_df["mse_train"] = train_mse
+params_df["mse_test"] = test_mse
 
-# Separate DataFrames for each plot
 df_train_r2 = params_df[["n_neighbors", "weights", "r2_train"]].copy()
 df_test_r2 = params_df[["n_neighbors", "weights", "r2_test"]].copy()
 df_train_mse = params_df[["n_neighbors", "weights", "mse_train"]].copy()
 df_test_mse = params_df[["n_neighbors", "weights", "mse_test"]].copy()
 
-# Pivot for heatmaps
 pivot_train_r2 = df_train_r2.pivot(index="n_neighbors", columns="weights", values="r2_train")
 pivot_test_r2 = df_test_r2.pivot(index="n_neighbors", columns="weights", values="r2_test")
 pivot_train_mse = df_train_mse.pivot(index="n_neighbors", columns="weights", values="mse_train")
 pivot_test_mse = df_test_mse.pivot(index="n_neighbors", columns="weights", values="mse_test")
 
-# Plot examples
+
 plt.figure(figsize=(6, 4))
 sns.heatmap(pivot_train_r2, annot=True, cmap="crest", fmt=".3f")
-plt.title("KNN R2 (Training)")
-plt.ylabel("n_neighbous")
+plt.title("KNN R2 (Training) - With Preprocessing")
+plt.ylabel("n_neighbors")
 plt.xlabel("weights")
 plt.tight_layout()
 plt.show()
 
 plt.figure(figsize=(6, 4))
 sns.heatmap(pivot_test_r2, annot=True, cmap="crest", fmt=".3f")
-plt.title("KNN R2 (Test)")
+plt.title("KNN R2 (Test) - With Preprocessing")
 plt.ylabel("n_neighbors")
 plt.xlabel("weights")
 plt.tight_layout()
@@ -290,7 +293,7 @@ plt.show()
 
 plt.figure(figsize=(6, 4))
 sns.heatmap(pivot_train_mse, annot=True, cmap="crest", fmt=".1f")
-plt.title("KNN MSE (Training)")
+plt.title("KNN MSE (Training) - With Preprocessing")
 plt.ylabel("n_neighbors")
 plt.xlabel("weights")
 plt.tight_layout()
@@ -298,16 +301,9 @@ plt.show()
 
 plt.figure(figsize=(6, 4))
 sns.heatmap(pivot_test_mse, annot=True, cmap="crest", fmt=".1f")
-plt.title("KNN MSE (Test)")
+plt.title("KNN MSE (Test) - With Preprocessing")
 plt.ylabel("n_neighbors")
 plt.xlabel("weights")
 plt.tight_layout()
 plt.show()
-
-
-
-
-
-
-
 
